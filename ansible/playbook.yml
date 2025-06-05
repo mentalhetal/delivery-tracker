@@ -1,22 +1,26 @@
-- name: Deploy Tracking App
-  hosts: all
+- name: Docker 앱 배포
+  hosts: app_servers
   become: yes
 
   tasks:
-    - name: Install Docker
+    - name: Docker 설치
       apt:
         name: docker.io
         state: present
         update_cache: yes
 
-    - name: Login to ECR
+    - name: Docker 서비스 시작
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: AWS ECR 로그인
       shell: |
-        aws ecr get-login-password | docker login --username AWS --password-stdin <ECR_URI>
+        aws ecr get-login-password --region ap-northeast-2 | \
+        docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
 
-    - name: Pull Docker Image
-      shell: docker pull <ECR_URI>/tracking-app:latest
-
-    - name: Run Container
+    - name: Docker 이미지 Pull 및 실행
       shell: |
         docker stop tracking || true && docker rm tracking || true
-        docker run -d -p 3000:3000 --name tracking <ECR_URI>/tracking-app:latest
+        docker run -d -p 3000:3000 --name tracking <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com/tracking-app:latest
