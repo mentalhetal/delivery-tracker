@@ -30,3 +30,19 @@ resource "aws_autoscaling_group" "tracking_asg" {
 
   target_group_arns = [aws_lb_target_group.main.arn]
 }
+
+resource "aws_lb_target_group" "main" {
+  name     = "tracking-tg"
+  port     = 3000
+  protocol = "HTTP"
+  vpc_id   = var.vpc_id
+
+  health_check {
+    path                = "/"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+}
+
