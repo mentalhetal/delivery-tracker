@@ -1,0 +1,27 @@
+- name: Deploy Docker App to Private EC2
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Add user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Login to ECR
+      shell: |
+        aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin <your_aws_account_id>.dkr.ecr.ap-northeast-2.amazonaws.com
+
+    - name: Pull Docker Image
+      shell: docker pull <your_aws_account_id>.dkr.ecr.ap-northeast-2.amazonaws.com/tracking-app:latest
+
+    - name: Run Docker Container
+      shell: |
+        docker stop tracking || true && docker rm tracking || true
+        docker run -d -p 3000:3000 --name tracking <your_aws_account_id>.dkr.ecr.ap-northeast-2.amazonaws.com/tracking-app:latest
