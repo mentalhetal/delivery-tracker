@@ -1,5 +1,5 @@
 variable "vpc_id" {
-  description = "VPC ID"
+  description = "VPC ID for subnet lookup"
   type        = string
 }
 
@@ -9,7 +9,7 @@ variable "ami" {
 }
 
 variable "key_name" {
-  description = "Key pair name"
+  description = "EC2 key pair name"
   type        = string
 }
 
