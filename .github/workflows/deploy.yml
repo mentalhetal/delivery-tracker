@@ -1,34 +1,33 @@
-name: CI/CD for Real-time Tracking
+name: CI/CD for Real-time Tracking (Private EC2)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-northeast-2
+      ECR_REPO: tracking-app
 
     steps:
-    - name: Git Checkout
+    - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v1
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
 
-    - name: Terraform Init
-      run: terraform -chdir=terraform/envs/dev init
-
-    - name: Terraform Apply
-      run: terraform -chdir=terraform/envs/dev apply -auto-approve
-
-    - name: Install Ansible
-      run: sudo apt-get update && sudo apt-get install -y ansible sshpass
-
-    - name: Add EC2 Host to Inventory
+    - name: Login to ECR
       run: |
-        echo "[ec2]" > ansible/inventory.ini
-        echo "$(terraform -chdir=terraform/envs/dev output -raw public_ip)" ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/your_key.pem >> ansible/inventory.ini
+        aws ecr get-login-password | docker login --username AWS --password-stdin <your_aws_account_id>.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
 
-    - name: Run Ansible Playbook
-      run: ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+    - name: Build & Push Docker image
+      run: |
+        docker build -t $ECR_REPO:latest .
+        docker tag $ECR_REPO:latest <your_aws_account_id>.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPO:latest
+        docker push <your_aws_account_id>.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPO:latest
