@@ -19,9 +19,9 @@
     - name: AWS ECR 로그인
       shell: |
         aws ecr get-login-password --region ap-northeast-2 | \
-        docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
+        docker login --username AWS --password-stdin 122996776662.dkr.ecr.ap-northeast-2.amazonaws.com
 
     - name: 기존 Docker 컨테이너 제거 및 앱 실행
       shell: |
         docker stop tracking || true && docker rm tracking || true
-        docker run -d -p 3000:3000 --name tracking <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com/tracking-app:latest
+        docker run -d -p 3000:3000 --name tracking 122996776662.dkr.ecr.ap-northeast-2.amazonaws.com/tracking-app:latest
