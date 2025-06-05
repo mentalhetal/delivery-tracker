@@ -1,3 +1,4 @@
+# ansible/playbook.yml
 - name: Docker 앱 배포
   hosts: app_servers
   become: yes
@@ -9,7 +10,7 @@
         state: present
         update_cache: yes
 
-    - name: Docker 서비스 시작
+    - name: Docker 서비스 실행
       service:
         name: docker
         state: started
@@ -18,9 +19,9 @@
     - name: AWS ECR 로그인
       shell: |
         aws ecr get-login-password --region ap-northeast-2 | \
-        docker login --username AWS --password-stdin 122996776662.dkr.ecr.ap-northeast-2.amazonaws.com
+        docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
 
-    - name: Docker 이미지 Pull 및 실행
+    - name: 기존 Docker 컨테이너 제거 및 앱 실행
       shell: |
         docker stop tracking || true && docker rm tracking || true
-        docker run -d -p 3000:3000 --name tracking 122996776662.dkr.ecr.ap-northeast-2.amazonaws.com/tracking-app:latest
+        docker run -d -p 3000:3000 --name tracking <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com/tracking-app:latest
