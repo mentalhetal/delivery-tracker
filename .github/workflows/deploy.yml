@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD with Docker + Ansible
 
 on:
   push:
@@ -7,46 +7,45 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REPO: tracking-app
+  ECR_URI: <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
-    - name: Configure AWS
+    - name: AWS 로그인
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Docker Login to ECR
+    - name: Docker Build & ECR Push
       run: |
-        aws ecr get-login-password | docker login --username AWS --password-stdin <ECR_URI>
-
-    - name: Build & Push Docker Image
-      run: |
-        docker build -t $ECR_REPO:latest ./app
-        docker tag $ECR_REPO:latest <ECR_URI>/$ECR_REPO:latest
-        docker push <ECR_URI>/$ECR_REPO:latest
+        docker build -t $ECR_REPO ./app
+        docker tag $ECR_REPO:latest $ECR_URI/$ECR_REPO:latest
+        docker push $ECR_URI/$ECR_REPO:latest
 
     - name: Terraform Apply
       run: |
+        cd terraform
         terraform init
         terraform apply -auto-approve
 
-    - name: Prepare SSH Keys
+    - name: EC2 인벤토리 생성
       run: |
-        echo "${{ secrets.BASTION_KEY }}" > ~/.ssh/bastion.pem
-        echo "${{ secrets.PRIVATE_KEY }}" > ~/.ssh/private.pem
-        chmod 600 ~/.ssh/*.pem
+        aws ec2 describe-instances \
+          --filters "Name=tag:Name,Values=tracking-ec2" \
+          --query "Reservations[*].Instances[*].PrivateIpAddress" \
+          --output text > ips.txt
 
-    - name: Create Ansible Inventory
+        echo "[app_servers]" > ansible/inventory.ini
+        cat ips.txt | while read ip; do echo "$ip ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/your-key.pem" >> ansible/inventory.ini; done
+
+    - name: Ansible 실행
       run: |
-        echo "$(terraform output -raw private_ip) ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/private.pem ansible_ssh_common_args='-o ProxyCommand=\"ssh -i ~/.ssh/bastion.pem -W %h:%p ubuntu@$(terraform output -raw bastion_ip)\"'" > ansible/inventory.ini
-
-    - name: Run Ansible Playbook
-      run: ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+        sudo apt update && sudo apt install -y ansible
+        ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
