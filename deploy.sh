@@ -1,18 +1,23 @@
 #!/bin/bash
 set -e
 
-ACCOUNT_ID="122996776662"  # ✅ 본인 AWS 계정 ID 입력
-ECR_URI="$ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com"
-REPO="tracking-app"
+# AWS 계정 ID 자동 추출
+ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+AWS_REGION="ap-northeast-2"
+ECR_REPO="tracking-app"
+ECR_URI="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+
+echo "AWS 계정 ID: $ACCOUNT_ID"
+echo "ECR 주소: $ECR_URI/$ECR_REPO"
 
 echo "[1] Docker Build"
-docker build -t $REPO ./app
-docker tag $REPO:latest $ECR_URI/$REPO:latest
+docker build -t $ECR_REPO ./app
+docker tag $ECR_REPO:latest $ECR_URI/$ECR_REPO:latest
 
-echo "[2] Docker Push"
-aws ecr get-login-password --region ap-northeast-2 | \
+echo "[2] Docker Push to ECR"
+aws ecr get-login-password --region $AWS_REGION | \
   docker login --username AWS --password-stdin $ECR_URI
-docker push $ECR_URI/$REPO:latest
+docker push $ECR_URI/$ECR_REPO:latest
 
 echo "[3] EC2 인벤토리 생성"
 aws ec2 describe-instances \
