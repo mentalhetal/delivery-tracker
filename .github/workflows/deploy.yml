@@ -1,33 +1,52 @@
-name: CI/CD for Real-time Tracking (Private EC2)
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ main ]
 
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPO: tracking-app
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      AWS_REGION: ap-northeast-2
-      ECR_REPO: tracking-app
 
     steps:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Configure AWS Credentials
+    - name: Configure AWS
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Login to ECR
+    - name: Docker Login to ECR
       run: |
-        aws ecr get-login-password | docker login --username AWS --password-stdin <your_aws_account_id>.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        aws ecr get-login-password | docker login --username AWS --password-stdin <ECR_URI>
 
-    - name: Build & Push Docker image
+    - name: Build & Push Docker Image
       run: |
-        docker build -t $ECR_REPO:latest .
-        docker tag $ECR_REPO:latest <your_aws_account_id>.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPO:latest
-        docker push <your_aws_account_id>.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPO:latest
+        docker build -t $ECR_REPO:latest ./app
+        docker tag $ECR_REPO:latest <ECR_URI>/$ECR_REPO:latest
+        docker push <ECR_URI>/$ECR_REPO:latest
+
+    - name: Terraform Apply
+      run: |
+        terraform init
+        terraform apply -auto-approve
+
+    - name: Prepare SSH Keys
+      run: |
+        echo "${{ secrets.BASTION_KEY }}" > ~/.ssh/bastion.pem
+        echo "${{ secrets.PRIVATE_KEY }}" > ~/.ssh/private.pem
+        chmod 600 ~/.ssh/*.pem
+
+    - name: Create Ansible Inventory
+      run: |
+        echo "$(terraform output -raw private_ip) ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/private.pem ansible_ssh_common_args='-o ProxyCommand=\"ssh -i ~/.ssh/bastion.pem -W %h:%p ubuntu@$(terraform output -raw bastion_ip)\"'" > ansible/inventory.ini
+
+    - name: Run Ansible Playbook
+      run: ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
