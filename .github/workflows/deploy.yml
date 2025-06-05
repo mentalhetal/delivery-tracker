@@ -34,12 +34,6 @@ jobs:
         docker tag $ECR_REPO:latest $ECR_URI/$ECR_REPO:latest
         docker push $ECR_URI/$ECR_REPO:latest
 
-    - name: Terraform Apply
-      run: |
-        cd terraform
-        terraform init
-        terraform apply -auto-approve
-
     - name: EC2 인벤토리 생성
       run: |
         aws ec2 describe-instances \
@@ -48,7 +42,9 @@ jobs:
           --output text > ips.txt
 
         echo "[app_servers]" > ansible/inventory.ini
-        cat ips.txt | while read ip; do echo "$ip ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/seoul.key.pem" >> ansible/inventory.ini; done
+        while read ip; do
+          echo "$ip ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/seoul.key.pem" >> ansible/inventory.ini
+        done < ips.txt
 
     - name: Ansible 실행
       run: |
