@@ -16,6 +16,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: SSH Key 설정
+      run: |
+        echo "${{ secrets.PRIVATE_KEY }}" > ~/.ssh/seoul.key.pem
+        chmod 600 ~/.ssh/seoul.key.pem
+    
     - name: AWS 로그인
       uses: aws-actions/configure-aws-credentials@v2
       with:
