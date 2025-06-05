@@ -7,7 +7,7 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REPO: tracking-app
-  ECR_URI: <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
+  ECR_URI: 122996776662.dkr.ecr.ap-northeast-2.amazonaws.com
 
 jobs:
   deploy:
@@ -48,7 +48,7 @@ jobs:
           --output text > ips.txt
 
         echo "[app_servers]" > ansible/inventory.ini
-        cat ips.txt | while read ip; do echo "$ip ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/your-key.pem" >> ansible/inventory.ini; done
+        cat ips.txt | while read ip; do echo "$ip ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/seoul.key.pem" >> ansible/inventory.ini; done
 
     - name: Ansible 실행
       run: |
